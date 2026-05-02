@@ -5,24 +5,6 @@
 #include <fstream>
 #include <sstream>
 
-// Define os argumentos que o programa espera receber e começa a função principal.
-int main(int argc, char* argv[]) {
-	if (argc != 3) {
-		std::println("Sintaxe Correta: ./montador <arquivo.asm> <-b|-h>"); // Informa a sintaxe correta ao usuário.                       
-		return 1;
-	}
-
-	std::string input_file = argv[1];
-	std::string output_format = argv[2];
-
-	if (output_format != "-b" && output_format != "-h") {
-		std::println("Formato de saída inválido. Use -b para binário ou -h para hexadecimal.");
-		return 1;
-	}
-
-	return 0;
-}
-
 // Definição da estrutura de instrução, contendo o mnemônico, tipo, opcode, funct e o padrão de operandos.
 struct Instruction {
 	std::string mnemonic;
@@ -109,6 +91,13 @@ std::map<std::string, int> register_table = {
 	{"$30",   30}, {"$31", 31}
 };
 
+// Função auxiliar para remover a vírgula do final de um token.
+std::string strip_comma(std::string token) {
+	if (!token.empty() && token.back() == ',')
+		token.pop_back();
+	return token;
+}
+
 // Função de leitura primaria. Esta função lê o arquivo de entrada linha por linha, remove os comentários, identifica 
 // os rótulos e armazena suas posições em uma tabela de símbolos.
 void read1(const std::string& filename, std::map<std::string, int>& symbol_table) {
@@ -135,4 +124,98 @@ void read1(const std::string& filename, std::map<std::string, int>& symbol_table
 
 		line_number++;
 	}
+}
+
+// Função de leitura secundária. Esta função lê o arquivo novamente, remove os comentários e rótulos, e processa as
+// instruções, convertendo-as para o formato binário ou hexadecimal conforme especificado pelo usuário. 
+// Além disso, também conta a quantidade de cada tipo de instrução para fins de relatório.
+void read2(const std::string& filename, const std::string& output_format, const std::map<std::string, 
+	int>& symbol_table, std::map<std::string, int>& instruction_count) {
+
+	// Abre o arquivo de entrada e prepara o arquivo de saída, definindo o nome do arquivo de saída com base no nome do
+	// arquivo de entrada e no formato de saída escolhido pelo usuário no começo do programa.
+	std::ifstream file(filename);
+	std::string output_filename = filename.substr(0, filename.find('.'));
+	output_filename += (output_format == "-b") ? ".bin" : ".hex";
+
+	std::ofstream output(output_filename);
+
+	if (output_format == "-h") // Escreve o cabeçalho para o formato hexadecimal.
+		output << "v2.0 raw\n";
+
+	int line_number = 0;
+	std::string line;
+
+	while (std::getline(file, line)) {
+		// Remove cos comentários presentes na linha
+		size_t comment_pos = line.find('#');
+		if (comment_pos != std::string::npos)
+			line = line.substr(0, comment_pos);
+
+		// Encontra os labels como na função anterior, mas desta vez remove os rótulos da linha para processar apenas 
+		// a instrução.
+		size_t colon_pos = line.find(':');
+		if (colon_pos != std::string::npos)
+			line = line.substr(colon_pos + 1);
+
+		// Pula linhas vazias e remove espaços em branco no início da linha para facilitar a identificação do 
+		// mnemônico.
+		size_t start = line.find_first_not_of(" \t");
+		if (start == std::string::npos) continue;
+		line = line.substr(start);
+
+		line_number++;
+
+		// Prcessa o mnemonico da instrução.
+		std::istringstream iss(line);
+		std::string mnemonic;
+		iss >> mnemonic;
+
+		// Procura a instrução correspondente na tabela de instruções.
+		Instruction* instr = nullptr;
+		for (auto& entry : instruction_table) {
+			if (entry.mnemonic == mnemonic) {
+				instr = &entry;
+				break;
+			}
+		}
+
+		// Se a instrução não for encontrada, exibe uma mensagem de erro e continua para a próxima linha.
+		if (instr == nullptr) {
+			std::println("Instrução desconhecida: {}", mnemonic, "Seu programa podera apresentar erros caso não haja",
+				"uma verificação manual posterior.");
+			continue;
+		}
+
+		// Incrementa a contagem da instrução processada para fins de relatório.
+		instruction_count[mnemonic]++;
+	}
+}
+
+// Define os argumentos que o programa espera receber e começa a função principal.
+int main(int argc, char* argv[]) {
+	if (argc != 3) {
+		std::println("Sintaxe Correta: ./montador <arquivo.asm> <-b|-h>"); // Informa a sintaxe correta ao usuário.                       
+		return 1;
+	}
+
+	std::string input_file = argv[1];
+	std::string output_format = argv[2];
+
+	// Declara a tabela de símbolos para armazenar os rótulos e suas posições.
+	std::map<std::string, int> symbol_table; 
+	// Declara a tabela de contagem de instruções para armazenar a quantidade de cada tipo de instrução processada.
+	std::map<std::string, int> instruction_count; 
+
+	read1(input_file, symbol_table);
+	read2(input_file, output_format, symbol_table, instruction_count);
+
+	// Lida com possíveis erros de formato de saída, informando o usuário sobre os formatos válidos e encerrando o 
+	// programa caso um formato inválido seja fornecido.
+	if (output_format != "-b" && output_format != "-h") {
+		std::println("Formato de saída inválido. Use -b para binário ou -h para hexadecimal.");
+		return 1;
+	}
+
+	return 0;
 }
