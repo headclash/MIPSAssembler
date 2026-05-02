@@ -1,0 +1,7 @@
+<Solution>
+  <Configurations>
+    <Platform Name="x64" />
+    <Platform Name="x86" />
+  </Configurations>
+  <Project Path="MIPSAssembler/MIPSAssembler.vcxproj" Id="40293e04-2a98-4cad-950a-83d07c3fa628" />
+</Solution>
