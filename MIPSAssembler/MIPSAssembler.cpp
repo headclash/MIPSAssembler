@@ -1,9 +1,10 @@
 #include <print>
 #include <string>
-#include <vector>
 #include <map>
 #include <fstream>
 #include <sstream>
+
+const int BASE_ADDRESS = 0x00400000;
 
 // Definição da estrutura de instrução, contendo o mnemônico, tipo, opcode, funct e o padrão de operandos.
 struct Instruction {
@@ -182,14 +183,107 @@ void read2(const std::string& filename, const std::string& output_format, const 
 
 		// Se a instrução não for encontrada, exibe uma mensagem de erro e continua para a próxima linha.
 		if (instr == nullptr) {
-			std::println("Instrução desconhecida: {}", mnemonic, "Seu programa podera apresentar erros caso não haja",
-				"uma verificação manual posterior.");
+			std::println("Instrução desconhecida: {}", mnemonic);
 			continue;
 		}
 
 		// Incrementa a contagem da instrução processada para fins de relatório.
 		instruction_count[mnemonic]++;
+
+		// Instruções de como o montador deve processar os operandos de cada instrução, dependendo do padrão de 
+		// operandos definido na tabela de instruções.
+		int rs = 0, rt = 0, rd = 0, shamt = 0, imm = 0;
+		std::string operand;
+
+		if (instr->operand_pattern == "rd,rs,rt") {
+			iss >> operand; rd = register_table[strip_comma(operand)];
+			iss >> operand; rs = register_table[strip_comma(operand)];
+			iss >> operand; rt = register_table[operand];
+		}
+
+		else if (instr->operand_pattern == "rd,rt,shamt") {
+			iss >> operand; rd = register_table[strip_comma(operand)];
+			iss >> operand; rt = register_table[strip_comma(operand)];
+			iss >> operand; shamt = std::stoi(operand);
+		}
+
+		else if (instr->operand_pattern == "rs,rt") {
+			iss >> operand; rs = register_table[strip_comma(operand)];
+			iss >> operand; rt = register_table[operand];
+		}
+
+		else if (instr->operand_pattern == "rs") {
+			iss >> operand; rs = register_table[operand];
+		}
+
+		else if (instr->operand_pattern == "rd") {
+			iss >> operand; rd = register_table[operand];
+		}
+
+		else if (instr->operand_pattern == "rt,imm(rs)") {
+			iss >> operand; rt = register_table[strip_comma(operand)];
+			iss >> operand;
+
+			size_t open_paren = operand.find('(');
+			size_t close_paren = operand.find(')');
+
+			imm = std::stoi(operand.substr(0, open_paren));
+			std::string reg = operand.substr(open_paren + 1, close_paren - open_paren - 1);
+			rs = register_table[reg];
+		}
+
+		else if (instr->operand_pattern == "rs,rt,imm") {
+			iss >> operand; rs = register_table[strip_comma(operand)];
+			iss >> operand; rt = register_table[strip_comma(operand)];
+			iss >> operand; imm = std::stoi(operand);
+		}
+
+		else if (instr->operand_pattern == "rt,imm") {
+			iss >> operand; rt = register_table[strip_comma(operand)];
+			iss >> operand; imm = std::stoi(operand);
+		}
+
+		else if (instr->operand_pattern == "addr") {
+			iss >> operand;
+			if (symbol_table.find(operand) != symbol_table.end()) {
+				int label_line = symbol_table.at(operand);
+				int label_address = BASE_ADDRESS + (label_line - 1) * 4;
+				imm = label_address / 4;
+			}
+			else {
+				std::println("Rótulo desconhecido: {}", operand);
+				continue;
+			}
+		}
+
+		else if (instr->operand_pattern == "rs,rt,imm") {
+			// Caso especial para lidar com bne e beq
+			iss >> operand; rs = register_table[strip_comma(operand)];
+			iss >> operand; rt = register_table[strip_comma(operand)];
+			iss >> operand;
+
+			if (symbol_table.find(operand) != symbol_table.end()) {
+				// Se imm for um label, calcula o offset relativo ao endereço da próxima instrução.
+				int label_line = symbol_table.at(operand);
+				imm = label_line - (line_number + 1);
+			}
+			else {
+				// Caso contrário, assume que imm é um valor imediato numérico.
+				imm = std::stoi(operand);
+			}
+		}
+
+		// Após processar os operandos, chama a função de impressão correspondente ao tipo da instrução para converter
+		// a instrução para o formato binário ou hexadecimal e escrevê-la no arquivo de saída.
+		if (instr->type == 'R')
+			print_r(output, output_format, instr->opcode, rs, rt, rd, shamt, instr->funct);// PENDENTE DE IMPLEMENTAÇÃO
+		else if (instr->type == 'I')
+			print_i(output, output_format, instr->opcode, rs, rt, imm);// PENDENTE DE IMPLEMENTAÇÃO
+		else if (instr->type == 'J')
+			print_j(output, output_format, instr->opcode, imm);// PENDENTE DE IMPLEMENTAÇÃO
+
 	}
+
 }
 
 // Define os argumentos que o programa espera receber e começa a função principal.
