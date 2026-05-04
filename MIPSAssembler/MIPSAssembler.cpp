@@ -4,6 +4,8 @@
 #include <fstream>
 #include <sstream>
 
+// Endereço base para o cálculo dos endereços dos rótulos, assumindo que o código começa a ser carregado a partir do
+// endereço 0x00400000, que é o endereço típico para o segmento de texto em sistemas MIPS.
 const int BASE_ADDRESS = 0x00400000;
 
 // Definição da estrutura de instrução, contendo o mnemônico, tipo, opcode, funct e o padrão de operandos.
@@ -97,6 +99,74 @@ std::string strip_comma(std::string token) {
 	if (!token.empty() && token.back() == ',')
 		token.pop_back();
 	return token;
+}
+
+// Função impressora tipo R. Esta função recebe os componentes da instrução vindos da função pass2 
+void print_r(std::ofstream& output, const std::string& output_format,
+	int opcode, int rs, int rt, int rd, int shamt, int funct) {
+
+	// Constrói a instrução de 32 bits de acordo com o formato R-type.
+	uint32_t instruction = 0;
+	instruction |= (opcode & 0x3F) << 26;
+	instruction |= (rs & 0x1F) << 21;
+	instruction |= (rt & 0x1F) << 16;
+	instruction |= (rd & 0x1F) << 11;
+	instruction |= (shamt & 0x1F) << 6;
+	instruction |= (funct & 0x3F);
+
+	if (output_format == "-b") {
+		for (int i = 31; i >= 0; i--)
+			output << ((instruction >> i) & 1);
+		output << "\n";
+	}
+	// Para o formato hexadecimal, escreve a instrução como um número hexadecimal de 8 dígitos com o auxilio da função 
+	// std::format do C++20 ou superior. 
+	else {
+		output << std::format("{:08x}", instruction) << "\n";
+	}
+}
+
+// Implementação similar à função print_r, mas adaptada para o formato I-type.
+void print_i(std::ofstream& output, const std::string& output_format,
+	int opcode, int rs, int rt, int imm) {
+	
+	// Constrói a instrução de 32 bits de acordo com o formato I-type.
+	uint32_t instruction = 0;
+	instruction |= (opcode & 0x3F) << 26;
+	instruction |= (rs & 0x1F) << 21;
+	instruction |= (rt & 0x1F) << 16;
+	instruction |= (imm & 0xFFFF);
+
+	// Constroi a instrução de 32 bits de acordo com o formato I-type.
+	if (output_format == "-b") {
+		for (int i = 31; i >= 0; i--)
+			output << ((instruction >> i) & 1);
+		output << "\n";
+	}
+
+	// Consultar print_r para entender a implementação do formato hexadecimal.
+	else {
+		output << std::format("{:08x}", instruction) << "\n";
+	}
+}
+
+// Implementação similar à função print_r, mas adaptada para o formato J-type.
+void print_j(std::ofstream& output, const std::string& output_format,
+	int opcode, int imm) {
+
+	uint32_t instruction = 0;
+	instruction |= (opcode & 0x3F) << 26;
+	instruction |= (imm & 0x3FFFFFF);
+	if (output_format == "-b") {
+		for (int i = 31; i >= 0; i--)
+			output << ((instruction >> i) & 1);
+		output << "\n";
+	}
+
+	// Consultar print_r para entender a implementação do formato hexadecimal.
+	else {
+		output << std::format("{:08x}", instruction) << "\n";
+	}
 }
 
 // Função de leitura primaria. Esta função lê o arquivo de entrada linha por linha, remove os comentários, identifica 
@@ -286,7 +356,6 @@ void read2(const std::string& filename, const std::string& output_format, const 
 
 }
 
-// Define os argumentos que o programa espera receber e começa a função principal.
 int main(int argc, char* argv[]) {
 	if (argc != 3) {
 		std::println("Sintaxe Correta: ./montador <arquivo.asm> <-b|-h>"); // Informa a sintaxe correta ao usuário.                       
