@@ -314,10 +314,17 @@ void read2(const std::string& filename, const std::string& output_format, const 
             operand = read_operand(iss); rt = register_table[strip_comma(operand)];
             operand = read_operand(iss);
 
+            // Caso especial para quanto (x) for separado do registrador por um espaço.
+            if (operand.find('(') == std::string::npos) {
+                imm = std::stoi(operand);
+                operand = read_operand(iss); // Leia (x) como o próximo token.
+            }
+            else {
+                imm = std::stoi(operand.substr(0, operand.find('(')));
+            }
+
             size_t open_paren = operand.find('(');
             size_t close_paren = operand.find(')');
-
-            imm = std::stoi(operand.substr(0, open_paren));
             std::string reg = operand.substr(open_paren + 1, close_paren - open_paren - 1);
             rs = register_table[reg];
         }
@@ -357,6 +364,25 @@ void read2(const std::string& filename, const std::string& output_format, const 
                     std::println("Line {}: immediate out of range '{}'", line_number, operand);
                     continue;
                 }
+            }
+        }
+
+        else if (instr->operand_pattern == "rt,rs,imm") {
+            operand = read_operand(iss); rt = register_table[strip_comma(operand)];
+            operand = read_operand(iss); rs = register_table[strip_comma(operand)];
+            operand = read_operand(iss);
+            operand = strip_comma(operand);
+
+            try {
+                imm = std::stoi(operand);
+            }
+            catch (const std::invalid_argument&) {
+                std::println("Linha {}: imediato inválido '{}'", line_number, operand);
+                continue;
+            }
+            catch (const std::out_of_range&) {
+                std::println("Linha {}: imediato fora do intervalo '{}'", line_number, operand);
+                continue;
             }
         }
 

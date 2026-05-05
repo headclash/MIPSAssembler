@@ -362,3 +362,5 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /TesteSilvio.asm
+/MIPSAssembler/teste.bin
+/MIPSAssembler/teste.hex
