@@ -96,14 +96,16 @@ std::map<std::string, int> register_table = {
     {"$30",   30}, {"$31", 31}
 };
 
-// Função auxiliar para remover a vírgula do final de um token.
+// Função auxiliar para remover a vírgula do final de um token (parte da linha do arquivo fonte) durante o
+// processamento das instruções.
 std::string strip_comma(std::string token) {
     if (!token.empty() && token.back() == ',')
         token.pop_back();
     return token;
 }
 
-// Função auxiliar para remover espaços em branco, tabulações e caracteres de nova linha do final de um token.
+// Função auxiliar para remover espaços em branco, tabulações e caracteres de nova linha do final de um token durante o
+// processamento das instruções
 std::string strip_whitespace(std::string token) {
     // Remove trailing whitespace and carriage returns
     while (!token.empty() && (token.back() == ' ' ||
@@ -121,7 +123,8 @@ std::string read_operand(std::istringstream& iss) {
     return strip_whitespace(operand);
 }
 
-// Função impressora tipo R. Esta função recebe os componentes da instrução vindos da função read2 
+// Função impressora tipo R. Esta função recebe os componentes da instrução vindos da função read2 e os imprime em um
+// arquivo .bin ou .hex.
 void print_r(std::ofstream& output, const std::string& output_format,
     int opcode, int rs, int rt, int rd, int shamt, int funct) {
 
@@ -217,7 +220,7 @@ void read1(const std::string& filename, std::map<std::string, int>& symbol_table
     }
 }
 
-// Função de leitura secundária. Esta função lê o arquivo novamente, remove os comentários e rótulos, e processa as
+// Função de leitura secundária. Esta função lê o arquivo novamente, ignorando os comentários e rótulos, e processa as
 // instruções, convertendo-as para o formato binário ou hexadecimal conforme especificado pelo usuário. 
 // Além disso, também conta a quantidade de cada tipo de instrução para fins de relatório.
 void read2(const std::string& filename, const std::string& output_format, const std::map<std::string,
